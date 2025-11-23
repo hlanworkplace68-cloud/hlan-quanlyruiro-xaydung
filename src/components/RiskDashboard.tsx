@@ -78,15 +78,13 @@ const RiskDashboard: React.FC<RiskDashboardProps> = ({
     
     // Log to audit trail
     AuditLogService.addLog({
-      id: Math.random().toString(36).substr(2, 9),
       projectId: project.id,
       riskId: newRisk.id,
       userId: user.id,
       username: user.username,
       action: 'create',
       entityType: 'risk',
-      entityName: newRisk.name,
-      timestamp: new Date().toISOString()
+      entityName: newRisk.name
     });
 
     // Create notification
@@ -129,7 +127,6 @@ const RiskDashboard: React.FC<RiskDashboardProps> = ({
 
       // Log to audit trail
       AuditLogService.addLog({
-        id: Math.random().toString(36).substr(2, 9),
         projectId: project.id,
         riskId: editingId,
         userId: user.id,
@@ -143,8 +140,7 @@ const RiskDashboard: React.FC<RiskDashboardProps> = ({
           { field: 'when', oldValue: risk.when, newValue: formData.when },
           { field: 'how', oldValue: risk.how, newValue: formData.how },
           { field: 'solution', oldValue: risk.solution, newValue: formData.solution }
-        ],
-        timestamp: new Date().toISOString()
+        ]
       });
 
       // Create notification
@@ -172,15 +168,13 @@ const RiskDashboard: React.FC<RiskDashboardProps> = ({
 
         // Log to audit trail
         AuditLogService.addLog({
-          id: Math.random().toString(36).substr(2, 9),
           projectId: project.id,
           riskId: id,
           userId: user.id,
           username: user.username,
           action: 'delete',
           entityType: 'risk',
-          entityName: risk.name,
-          timestamp: new Date().toISOString()
+          entityName: risk.name
         });
 
         // Create notification

@@ -3,6 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { Risk, FormData, Project } from '@/types';
 import { AlertTriangle, Download, Plus, Edit2, Trash2, Save, X } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { AuditLogService } from '@/services/AuditLogService';
+import { NotificationService } from '@/services/NotificationService';
+import { AnalyticsService } from '@/services/AnalyticsService';
 
 interface RiskDashboardProps {
   project: Project | null;
@@ -21,6 +25,7 @@ const RiskDashboard: React.FC<RiskDashboardProps> = ({
   onDeleteRisk,
   canEdit
 }) => {
+  const { user } = useAuth();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
   const [formData, setFormData] = useState<FormData>({
@@ -54,7 +59,7 @@ const RiskDashboard: React.FC<RiskDashboardProps> = ({
 
   // CRUD Operations
   const handleAdd = (): void => {
-    if (!project) return;
+    if (!project || !user) return;
     if (!formData.name.trim()) {
       alert('Vui lòng nhập tên rủi ro');
       return;
@@ -64,9 +69,37 @@ const RiskDashboard: React.FC<RiskDashboardProps> = ({
       ...formData,
       id: Math.max(...risks.map(r => r.id), 0) + 1,
       projectId: project.id,
+      createdAt: new Date().toISOString(),
+      createdBy: user.username,
       lastUpdated: new Date().toISOString()
     };
+    
     onAddRisk(newRisk);
+    
+    // Log to audit trail
+    AuditLogService.addLog({
+      id: Math.random().toString(36).substr(2, 9),
+      projectId: project.id,
+      riskId: newRisk.id,
+      userId: user.id,
+      username: user.username,
+      action: 'create',
+      entityType: 'risk',
+      entityName: newRisk.name,
+      timestamp: new Date().toISOString()
+    });
+
+    // Create notification
+    NotificationService.createNotification({
+      userId: user.id,
+      title: 'Rủi ro mới được thêm',
+      message: `${user.username} vừa thêm rủi ro: ${newRisk.name}`,
+      type: 'info',
+      read: false,
+      riskId: newRisk.id,
+      projectId: project.id
+    });
+
     setShowAddForm(false);
     resetForm();
   };
@@ -81,15 +114,50 @@ const RiskDashboard: React.FC<RiskDashboardProps> = ({
   };
 
   const handleUpdate = (): void => {
-    if (!editingId) return;
+    if (!editingId || !project || !user) return;
     const risk = risks.find(r => r.id === editingId);
     if (risk) {
-      onUpdateRisk({
+      const updatedRisk: Risk = {
         ...formData,
         id: editingId,
         projectId: risk.projectId,
+        createdAt: risk.createdAt,
+        createdBy: risk.createdBy,
         lastUpdated: new Date().toISOString()
+      };
+      onUpdateRisk(updatedRisk);
+
+      // Log to audit trail
+      AuditLogService.addLog({
+        id: Math.random().toString(36).substr(2, 9),
+        projectId: project.id,
+        riskId: editingId,
+        userId: user.id,
+        username: user.username,
+        action: 'update',
+        entityType: 'risk',
+        entityName: updatedRisk.name,
+        changes: [
+          { field: 'name', oldValue: risk.name, newValue: formData.name },
+          { field: 'what', oldValue: risk.what, newValue: formData.what },
+          { field: 'when', oldValue: risk.when, newValue: formData.when },
+          { field: 'how', oldValue: risk.how, newValue: formData.how },
+          { field: 'solution', oldValue: risk.solution, newValue: formData.solution }
+        ],
+        timestamp: new Date().toISOString()
       });
+
+      // Create notification
+      NotificationService.createNotification({
+        userId: user.id,
+        title: 'Rủi ro được cập nhật',
+        message: `${user.username} vừa cập nhật rủi ro: ${updatedRisk.name}`,
+        type: 'info',
+        read: false,
+        riskId: editingId,
+        projectId: project.id
+      });
+
       setEditingId(null);
       resetForm();
     }
@@ -97,7 +165,34 @@ const RiskDashboard: React.FC<RiskDashboardProps> = ({
 
   const handleDelete = (id: number): void => {
     if (confirm('Bạn có chắc muốn xóa rủi ro này?')) {
-      onDeleteRisk(id);
+      if (!user || !project) return;
+      const risk = risks.find(r => r.id === id);
+      if (risk) {
+        onDeleteRisk(id);
+
+        // Log to audit trail
+        AuditLogService.addLog({
+          id: Math.random().toString(36).substr(2, 9),
+          projectId: project.id,
+          riskId: id,
+          userId: user.id,
+          username: user.username,
+          action: 'delete',
+          entityType: 'risk',
+          entityName: risk.name,
+          timestamp: new Date().toISOString()
+        });
+
+        // Create notification
+        NotificationService.createNotification({
+          userId: user.id,
+          title: 'Rủi ro bị xóa',
+          message: `${user.username} vừa xóa rủi ro: ${risk.name}`,
+          type: 'warning',
+          read: false,
+          projectId: project.id
+        });
+      }
     }
   };
 
